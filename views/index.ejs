@@ -3,12 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://unpkg.com/simpledotcss/simple.css">
+    <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
     <title>Weather App</title>
 </head>
 
 <body>
-
+    <center>
+        <header>
+            <h1>Weather App</h1>
+        </header>
+        <br>
+        <main>
+            <form action="/weather" method="POST">
+                <fieldset>
+                    <legend>Weather Forecast</legend>
+                    <input type="text" placeholder="enter name of city" id="cityname" name="cityname" required>
+                    <br>
+                    <button type="submit">Submit</button>
+                </fieldset>
+            </form>
+            
+        </main>
+    </center>
 </body>
 
 </html>
