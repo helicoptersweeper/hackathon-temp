@@ -1,65 +1,60 @@
 const express = require('express')
-const res = require('express/lib/response')
 const app = express()
-
-let lat=0
-let lon=0
 
 const API_KEY = 'bbf6602987ba045f06b64a1e8d428b1f'
 
 app.set("view engine", "ejs")
 app.use(express.static("public"))
 app.use(express.urlencoded({ extended: true }))
-app.use((req, res, next) => {
-  res.locals.user = req.user;
-  next();
-});
 
 app.get('/', (req, res) => {
-    res.render("index")
+    res.render("index", { weather: null, error: null })
 })
 
-app.post('/weather', (req, res) =>{
+// Bug fixes:
+// - Made the whole handler async so we can properly await each step
+// - Removed global lat/lon, now they're local to each request
+// - getCoords and getWeather merged into one clean try/catch flow
+// - Fixed getWeather fetching geoURL instead of weaURL
+// - Switched from One Call API 3.0 (paid) to data/2.5/weather (free)
+// - Fixed res.send("view", data) -> res.render("view", data)
+// - Removed the bad `const res = require('express/lib/response')` line
+app.post('/weather', async (req, res) => {
     const cityname = req.body.cityname
-    console.log(cityname)
-    const geoURL = `http://api.openweathermap.org/geo/1.0/direct?q=${cityname}&appid=${API_KEY}`
 
-    const getCoords = async () => {
-        try {
-            const response = await fetch(geoURL)
-            const data = await response.json()
-            lat = data[0].lat
-            lon = data[0].lon
-            console.log(lat)
-            console.log(lon)
-            
-        } catch (error) {
-            console.error(error)
-            res.send("weather", { weather: null })
+    try {
+        // Get coordinates for the city
+        const geoURL = `http://api.openweathermap.org/geo/1.0/direct?q=${cityname}&appid=${API_KEY}`
+        const geoResponse = await fetch(geoURL)
+        const geoData = await geoResponse.json()
+
+        if (!geoData || geoData.length === 0) {
+            return res.render("index", { weather: null, error: "City not found. Please try again." })
         }
-        
 
-    }
-    getCoords()
+        const lat = geoData[0].lat
+        const lon = geoData[0].lon
 
-    const weaURL = `https://api.openweathermap.org/data/3.0/onecall?lat=${lat}&lon=${lon}&appid=${API_KEY}`
+        // Fetch the actual weather
+        const weaURL = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`
+        const weaResponse = await fetch(weaURL)
+        const weaData = await weaResponse.json()
 
-    const getWeather = async () => {
-        try {
-            const response = await fetch(geoURL)
-            const data = await response.json()
-            
-            res.send(`${data.current[0].weather}`)
-            
-        } catch (error) {
-            console.error(error)
-            res.send("weather", { weather: null })
+        const weather = {
+            city: cityname,
+            description: weaData.weather[0].description,
+            temp: Math.round(weaData.main.temp),
+            feels_like: Math.round(weaData.main.feels_like),
+            humidity: weaData.main.humidity,
+            wind: weaData.wind.speed
         }
-        
 
+        res.render("index", { weather, error: null })
+
+    } catch (error) {
+        console.error(error)
+        res.render("index", { weather: null, error: "Something went wrong. Please try again." })
     }
-    getWeather()
-
 })
 
 app.listen(3000, () => {
